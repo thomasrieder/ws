@@ -102,6 +102,7 @@ wsServer.on('request', function(req){
     if(isRemote(req.origin)){
       console.log('Remove player:  ', REMOTE_ID);
       remotes.splice(REMOTE_ID, 1);
+      broadcastToDisplay('removePlayer', {idPlayer: REMOTE_ID});
     } else {
       displays.splice(DISPLAY_ID, 1);
     }
