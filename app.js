@@ -127,7 +127,7 @@ function checkOpcode(opcode, idPlayer){
       broadcastToDisplay("up", {idPlayer: idPlayer, pd: "t'es un fdp"}); //UP
       break;
     case 187: //0xBB
-      broadcastToDisplay("down", {idPlayer: idPlayer, tam: "ta mère"}}); //DOWN
+      broadcastToDisplay("down", {idPlayer: idPlayer, tam: "ta mère"}); //DOWN
       break;
   }
 
