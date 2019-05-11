@@ -63,8 +63,8 @@ wsServer = new WebSocketServer({
 
 
 
-
 var remotes = [];
+var players = [];
 var displays = [];
 
 wsServer.on('request', function(req){
@@ -84,7 +84,8 @@ wsServer.on('request', function(req){
   //push in array
   if(isRemote(req.origin)){
 
-    var REMOTE_ID = remotes.push(co) - 1;
+    var PLAYER_ID = players.length;
+    newPlayer(PLAYER_ID);
   } else {
 
     var DISPLAY_ID = displays.push(co) - 1;
@@ -94,20 +95,42 @@ wsServer.on('request', function(req){
   co.on('message', function(data){
 
     var arrByte = new Buffer.from(data.binaryData);
-    checkOpcode(arrByte[0], REMOTE_ID);
+    checkOpcode(arrByte[0], PLAYER_ID, arrByte[2]);
   });
 
   co.on('close', function(ws){
 
     if(isRemote(req.origin)){
-      console.log('Remove player:  ', REMOTE_ID);
-      remotes.splice(REMOTE_ID, 1);
-      broadcastToDisplay('removePlayer', {idPlayer: REMOTE_ID});
+      console.log('Remove player:  ', PLAYER_ID);
+
+      players.splice(PLAYER_ID, 1);
+      broadcastToDisplay('removePlayer', {idPlayer: PLAYER_ID});
     } else {
       displays.splice(DISPLAY_ID, 1);
     }
   });
 });
+
+function newPlayer(idPlayer){
+
+  var randomColor = "#000000".replace(/0/g, function(){
+    return (~~(Math.random()*16)).toString(16);
+  });
+
+  var defX = 200;
+  var defY = 0;
+
+  var Player = {
+    id: idPlayer,
+    color: randomColor,
+    x: defX,
+    y: defY,
+    size: 80
+  };
+
+  players.push(Player);
+  broadcastToDisplay('newPlayer', {player: Player});
+}
 
 //data.event RESERVED
 function broadcastToDisplay(ev, data){
@@ -120,20 +143,25 @@ function broadcastToDisplay(ev, data){
   }
 }
 
-function checkOpcode(opcode, idPlayer){
+function checkOpcode(opcode, idPlayer, data){
 
   console.log('OPT: ' + opcode);
   switch(opcode){
-    case 170: //0xAA
-      broadcastToDisplay("up", {idPlayer: idPlayer, pd: "t'es un fdp"}); //UP
-      break;
-    case 187: //0xBB
-      broadcastToDisplay("down", {idPlayer: idPlayer, tam: "ta mère"}); //DOWN
-      break;
-  }
+    case 0xaa: //0xAA
+      if(data == 1){
+        broadcastToDisplay("goUp", {idPlayer: idPlayer}); //GOUP
+      }else{
+        broadcastToDisplay("stopMove", {idPlayer: idPlayer});
+      }
 
-  if(opcode == 170){
-
+      break;
+    case 0xbb: //0xBB
+      if(data == 1){
+        broadcastToDisplay("goDown", {idPlayer: idPlayer}); //GOUP
+      }else{
+        broadcastToDisplay("stopMove", {idPlayer: idPlayer});
+      }
+      break;
   }
 }
 
