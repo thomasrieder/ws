@@ -62,10 +62,15 @@ wsServer = new WebSocketServer({
 
 
 
-
+var MAX_PLAYERS = 5;
 var remotes = [];
 var players = [];
 var displays = [];
+
+//fill players
+for(var i = 0; i < MAX_PLAYERS; i++){
+  players[i] = -1;
+}
 
 wsServer.on('request', function(req){
 
@@ -84,8 +89,12 @@ wsServer.on('request', function(req){
   //push in array
   if(isRemote(req.origin)){
 
-    var PLAYER_ID = players.length;
-    newPlayer(PLAYER_ID);
+    //récupère un ID libre
+    var PLAYER_ID = getFreeId();
+    if(PLAYER_ID != -1){
+      remotes[PLAYER_ID] = co;
+      newPlayer(PLAYER_ID);
+    }
   } else {
 
     var DISPLAY_ID = displays.push(co) - 1;
@@ -103,13 +112,22 @@ wsServer.on('request', function(req){
     if(isRemote(req.origin)){
       console.log('Remove player:  ', PLAYER_ID);
 
-      players.splice(PLAYER_ID, 1);
+      players[PLAYER_ID] = -1;
       broadcastToDisplay('removePlayer', {idPlayer: PLAYER_ID});
     } else {
       displays.splice(DISPLAY_ID, 1);
     }
   });
 });
+
+function getFreeId(){
+  for(var i = 0; i < MAX_PLAYERS; i++){
+    if(players[i] == -1){
+      return i;
+    }
+  }
+  return -1;
+}
 
 function newPlayer(idPlayer){
 
@@ -128,8 +146,10 @@ function newPlayer(idPlayer){
     size: 80
   };
 
-  players.push(Player);
+  players[idPlayer] = Player;
   broadcastToDisplay('newPlayer', {player: Player});
+  var msg = Buffer(randomColor);
+  remotes[idPlayer].send(msg);
 }
 
 //data.event RESERVED
@@ -157,7 +177,7 @@ function checkOpcode(opcode, idPlayer, data){
       break;
     case 0xbb: //0xBB
       if(data == 1){
-        broadcastToDisplay("goDown", {idPlayer: idPlayer}); //GOUP
+        broadcastToDisplay("goDown", {idPlayer: idPlayer}); //GODOWN
       }else{
         broadcastToDisplay("stopMove", {idPlayer: idPlayer});
       }

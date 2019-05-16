@@ -3,7 +3,16 @@ var ip = location.host;
 var ws = new WebSocket('ws://'+ip);
 var wsEvent = $(document);
 var nbPlayers = 0;
+var MAX_PLAYERS = 5;
 var players = [];
+var walls = [];
+
+//fill players
+for(var i = 0; i < MAX_PLAYERS; i++){
+  players[i] = -1;
+}
+
+console.log(players);
 
 ws.onmessage = function(e){
 
@@ -16,30 +25,29 @@ ws.onmessage = function(e){
 //create Events...
 wsEvent.on('goUp', function(e, data){
   console.log("goUp: "+data.idPlayer);
-  var player = getPlayer(data.idPlayer);
-  player.speedY = -10;
+
+  players[data.idPlayer].speedY = -10;
+  players[data.idPlayer].newPos();
 });
 
 wsEvent.on('goDown', function(e, data){
   console.log("goDown: "+data.idPlayer);
-  var player = getPlayer(data.idPlayer);
-  player.speedY = 10;
+
+  players[data.idPlayer].speedY = 10;
+  players[data.idPlayer].newPos();
 });
 
 wsEvent.on('stopMove', function(e, data){
   console.log("freeze: "+data.idPlayer);
-  var player = getPlayer(data.idPlayer);
-  player.speedY = 0;
+
+  players[data.idPlayer].speedY = 0;
+  players[data.idPlayer].newPos();
 });
 
 wsEvent.on('removePlayer', function(e, data){
   console.log('Remove player: '+data.idPlayer);
 
-  for(var i = 0; i < players.length; i++){
-    if(players[i].id == data.idPlayer){
-      players.splice(i, 1);
-    }
-  }
+  players[data.idPlayer] = -1;
 });
 
 wsEvent.on('newPlayer', function(e, data){
@@ -54,14 +62,21 @@ wsEvent.on('newPlayer', function(e, data){
     data.player.color,
     data.player.id
   );
+
+  players[data.player.id] = newPlayer;
   newPlayer.update();
-  players.push(newPlayer);
 });
 
+
+/* ------------------------------------------------------------------------- */
 
 var cvs;
 var ctx;
 var gameInterval;
+var isRunning = 0;
+var tickWall = 0;
+var wallWidth = 80;
+
 $(document).ready(function(){
 
   cvs = document.getElementById("canvas");;
@@ -73,15 +88,7 @@ $(document).ready(function(){
   startGame();
 });
 
-function getPlayer(idPlayer){
-  var found = players.find(function(el) {
-    return el.id == idPlayer;
-  });
-
-  return found;
-}
-
-function Component(width, height, x, y, type, color = "green", id = "mur"){
+function Component(width, height, x, y, type, color = "green", id = "wall"){
   this.type = type;
   this.id = id;
   this.color = color;
@@ -122,17 +129,73 @@ function Component(width, height, x, y, type, color = "green", id = "mur"){
   }
 }
 
+function createWall(){
+
+  var heightTopWall = Math.floor(Math.random() * (cvs.height - 2*wallWidth)) + wallWidth;
+  var heightBotWall = Math.floor(Math.random() * (cvs.height-heightTopWall-wallWidth)) + wallWidth;
+
+  var newTopWall = new Component(
+    wallWidth,        //width
+    heightTopWall,    //height
+    cvs.width,        //posX
+    0                 //posY
+  );
+
+  var newBotWall = new Component(
+    wallWidth,   //width
+    heightBotWall,   //height
+    cvs.width,      //posX
+    cvs.height - heightBotWall       //posY
+  );
+
+  newTopWall.speedX = -8;
+  newBotWall.speedX = -8;
+
+  walls.push(newTopWall);
+  walls.push(newBotWall);
+}
+
+
 function startGame(){
+  isRunning = 1;
   gameInterval = setInterval(updateGameArea, 20);
 }
+
+$('.pause-btn').click(function(){
+
+  if(isRunning){
+
+    clearInterval(gameInterval);
+    isRunning = 0;
+    $(this).text('START');
+  } else{
+
+    gameInterval = setInterval(updateGameArea, 20);
+    isRunning = 1;
+    $(this).text('PAUSE');
+  }
+});
 
 function updateGameArea(){
 
   ctx.clearRect(0, 0, cvs.width, cvs.height);
 
   for(var i = 0; i < players.length; i++){
+    if(players[i] != -1){
+      players[i].newPos();
+      players[i].update();
+    }
+  }
 
-    players[i].newPos();
-    players[i].update();
+  for(var i = 0; i < walls.length; i++){
+    walls[i].newPos();
+    walls[i].update();
+  }
+
+  if(tickWall < 80){
+    tickWall++;
+  }else{
+    createWall();
+    tickWall = 0;
   }
 }
